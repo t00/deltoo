@@ -67,3 +67,5 @@ DEALINGS IN THE SOFTWARE.
 
 History:
   v1.0 2012-12-12 First public release (http://turecki.net/node/14)
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/t00/deltoo/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
