@@ -18,6 +18,7 @@ The control may have some bugs as it was not heavily tested and for best experie
 Having said that, for all those who seek a free TCheckComboBox which have all or some of aforementioned features, feel free to use it.
 
 TGenericStringList<T>
+==============
 
 	A generic list with benefits of both TStringList (persistent, sortable, can be published) and TList<> (generic list containing TObject descendants).
 	This stores both string and object so is similar to the Tuple<string, T> in C#.
@@ -28,6 +29,7 @@ TGenericStringList<T>
         sl[0].Value := sl[0].Value + 1; // 124
 	
 TPersistentStringList<T>
+==============
 
 TGenericStringList with deep cloning ability, each object contained in the collection will be recreated wher assigning - parameterless constructor is required.
 
