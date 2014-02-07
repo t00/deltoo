@@ -48,7 +48,7 @@ type
   private
     FCaption: string;
     FCheckCombo: Boolean;
-    FChecked: array of Boolean;
+    FChecked: TList;
     FDefaultValue: string;
     FDefListProc: Pointer;
     FDisplayValues: Boolean;
@@ -61,8 +61,11 @@ type
     FValues: TStrings;
     FValuesAreFlags: Boolean;
 
+	function GetChecked(AIndex: Integer): Boolean;
+	procedure InternalSetChecked(const AIndex: Integer; const AValue: Boolean);
     procedure SetCaption(const Value: string);
     procedure SetCheckCombo(const Value: Boolean);
+	procedure SetChecked(AIndex: Integer; AChecked: Boolean);
     procedure SetDisplayValues(const Value: Boolean);
     procedure SetText(const AValue: string; AUseValue: Boolean);
     procedure SetValue(const Value: string);
@@ -82,9 +85,9 @@ type
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function GetCheck(const Index: Integer): Boolean;
+    procedure Clear; override;
     procedure SetAll(const AChecked: Boolean);
-    procedure SetCheck(const AIndex: Integer; const AChecked: Boolean);
+    property Checked[AIndex: Integer]: Boolean read GetChecked write SetChecked;
   published
     property Caption: string read FCaption write SetCaption;
     property CheckCombo: Boolean read FCheckCombo write SetCheckCombo default True;
@@ -122,19 +125,48 @@ begin
   FDisplayValues := False;
   FValues := TStringList.Create;
   FValuesAreFlags := False;
+  FChecked := TList.Create;
   FCheckCombo := True;
 end;
 
 destructor TCheckComboBox.Destroy;
 begin
   Classes.FreeObjectInstance(FListProcInstance);
-  FreeAndNil(FValues);
+  FValues.Free;
+  FChecked.Free;
   inherited;
+end;
+
+function TCheckComboBox.GetChecked(AIndex: Integer): Boolean;
+begin
+  UpdateChecked;
+  Result := FChecked[AIndex] <> nil;
+end;
+
+procedure TCheckComboBox.InternalSetChecked(const AIndex: Integer; const AValue: Boolean);
+begin
+  UpdateChecked;
+  FChecked[AIndex] := Pointer(Ord(AValue));
+end;
+
+procedure TCheckComboBox.SetChecked(AIndex: Integer; AChecked: Boolean);
+begin
+  UpdateChecked;
+  if AChecked <> Checked[AIndex] then
+  begin
+    InternalSetChecked(AIndex, AChecked);
+    SelectionChanged;
+    Change;
+    InvalidateItem(AIndex);
+  end;
 end;
 
 procedure TCheckComboBox.UpdateChecked;
 begin
-  SetLength(FChecked, ItemCount);
+  while FChecked.Count < ItemCount do
+    FChecked.Add(0);
+  while FChecked.Count > ItemCount do
+    FChecked.Delete(FChecked.Count - 1);
 end;
 
 procedure TCheckComboBox.CreateParams(var Params: TCreateParams);
@@ -183,13 +215,20 @@ begin
     i := CallWindowProcA(FDefListProc, FListHandle, LB_GETCURSEL, Message.wParam, Message.lParam);
     if i >= 0 then
     begin
-      SetCheck(i, not GetCheck(i));
+      Checked[i] := not Checked[i];
       Message.Result := 0;
       Exit;
     end;
   end;
 
   inherited ComboWndProc(Message, ComboWnd, ComboProc);
+end;
+
+procedure TCheckComboBox.Clear;
+begin
+  inherited;
+  FChecked.Clear;
+  FValues.Clear;
 end;
 
 procedure TCheckComboBox.CloseUp;
@@ -217,7 +256,7 @@ begin
         if Message.WParam = VK_SPACE then
         begin
           idx := CallWindowProcA(FDefListProc, FListHandle, LB_GETCURSEL, Message.wParam, Message.lParam);
-          SetCheck(idx, not GetCheck(idx));
+          Checked[idx] := not Checked[idx];
         end;
       end;
 
@@ -227,7 +266,7 @@ begin
         GetWindowRect(FListHandle, listRect);
         if PtInRect(listRect, Mouse.CursorPos) then
           if idx >= 0 then
-            SetCheck(idx, not GetCheck(idx));
+            Checked[idx] := not Checked[idx];
       end;
 
       WM_LBUTTONUP:
@@ -271,7 +310,7 @@ begin
           r.Bottom := r.Top + s.cy;
           r.Left := Rect.Left + PADDING;
           r.Right := r.Left + s.cx;
-          DrawThemeBackground(h, Canvas.Handle, BP_CHECKBOX, IfThen(FChecked[Index], CBS_CHECKEDNORMAL, CBS_UNCHECKEDNORMAL), r, nil);
+          DrawThemeBackground(h, Canvas.Handle, BP_CHECKBOX, IfThen(Checked[Index], CBS_CHECKEDNORMAL, CBS_UNCHECKEDNORMAL), r, nil);
         finally
           CloseThemeData(h);
         end;
@@ -285,7 +324,7 @@ begin
       r.Bottom := r.Top + s.cy;
       r.Left := Rect.Left + PADDING;
       r.Right := r.Left + s.cx;
-      DrawFrameControl(Canvas.Handle, r, DFC_BUTTON, IfThen(FChecked[Index], CBS_CHECKEDNORMAL, CBS_UNCHECKEDNORMAL));
+      DrawFrameControl(Canvas.Handle, r, DFC_BUTTON, IfThen(Checked[Index], CBS_CHECKEDNORMAL, CBS_UNCHECKEDNORMAL));
     end;
     s.cx := s.cx + PADDING * 2;
   end
@@ -301,12 +340,6 @@ begin
   Canvas.TextOut(Rect.Left + s.cx, Rect.Top, v);
 end;
 
-function TCheckComboBox.GetCheck(const Index: Integer): Boolean;
-begin
-  UpdateChecked;
-  Result := FChecked[Index];
-end;
-
 function TCheckComboBox.InternalSetAll(AChecked: Boolean): Boolean;
 var
   i: Integer;
@@ -315,8 +348,8 @@ begin
   Result := False;
   for i := 0 to Items.Count - 1 do
   begin
-    Result := Result or (FChecked[i] <> AChecked);
-    FChecked[i] := AChecked;
+    Result := Result or (Checked[i] <> AChecked);
+    InternalSetChecked(i, AChecked);
   end;
 end;
 
@@ -334,18 +367,6 @@ begin
   begin
     SelectionChanged;
     Change;
-  end;
-end;
-
-procedure TCheckComboBox.SetCheck(const AIndex: Integer; const AChecked: Boolean);
-begin
-  UpdateChecked;
-  if AChecked <> FChecked[AIndex] then
-  begin
-    FChecked[AIndex] := AChecked;
-    SelectionChanged;
-    Change;
-    InvalidateItem(AIndex);
   end;
 end;
 
@@ -402,9 +423,6 @@ begin
   begin
     InternalSetAll(False);
 
-    sl := TStringList.Create;
-    sl.CommaText := AValue;
-
     if AUseValue then
       list := FValues
     else
@@ -412,23 +430,28 @@ begin
 
     if FValuesAreFlags and AUseValue then
     begin
-      flags := StrToIntDef(Value, 0);
+      flags := StrToIntDef(AValue, 0);
       for i := 0 to FValues.Count - 1 do
       begin
         v := StrToIntDef(FValues[i], 0);
-        FChecked[i] := (v and flags) > 0;
+        FChecked[i] := Pointer(Ord(((v and flags) > 0) or ((flags = 0) and (v = 0))));
       end;
     end
     else
     begin
-      for i := 0 to sl.Count - 1 do
-      begin
-        idx := list.IndexOf(Trim(sl[i]));
-        if idx >= 0 then
-          FChecked[idx] := True;
+      sl := TStringList.Create;
+      try
+        sl.CommaText := AValue;
+        for i := 0 to sl.Count - 1 do
+        begin
+          idx := list.IndexOf(Trim(sl[i]));
+          if idx >= 0 then
+            Checked[idx] := True;
+        end;
+      finally
+        sl.Free;
       end;
     end;
-    FreeAndNil(sl);
   end;
   SelectionChanged;
 end;
@@ -437,10 +460,12 @@ procedure TCheckComboBox.SelectionChanged;
 var
   i: Integer;
   v: string;
+  flags: Integer;
 begin
   FSelectedCount := 0;
   FValue := '';
   FCaption := '';
+  flags := 0;
 
   if not FCheckCombo then
   begin
@@ -463,7 +488,7 @@ begin
     UpdateChecked;
     for i := 0 to Items.Count - 1 do
     begin
-      if FChecked[i] then
+      if Checked[i] then
       begin
         if FSelectedCount > 0 then
         begin
@@ -476,17 +501,22 @@ begin
         if not Assigned(FOnAggregate) then
         begin
           if i < FValues.Count then
-            v := FValues[i]
+          begin
+            v := FValues[i];
+            if FValuesAreFlags then
+              flags := flags or StrToIntDef(FValues[i], 0);
+          end
           else
             v := FDefaultValue;
           FValue := FValue + v;
         end;
-
-        Inc(FSelectedCount);
       end;
+      Inc(FSelectedCount);
     end;
-
-    if Assigned(FOnAggregate) then
+    
+    if FValuesAreFlags then
+      FValue := IntToStr(flags)
+    else if Assigned(FOnAggregate) then
       FOnAggregate(Self, FValue);
   end;
 

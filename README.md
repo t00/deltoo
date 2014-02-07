@@ -3,12 +3,12 @@ TCheckComboBox
 
 Simple themed TCheckComboBox control for Delphi - TComboBox with checkboxes
 
-- separate Items and Values where Values can optionally be presented to a user instead of Items
-- custom aggregation of values depending on user selection - checking checkboxes should trigger the event which will return a text calculated based on selections and custom algorithm, which can be say: sum all values of selected items, take maximum, average etc.
-- optionally for ease of use, it should contain bitmask aggregation mode - where value can be set and retrieved by simply assigning to a string representation of integer and appropriate checked items will be translated to bit weights of items
-- checks should be completely optional, when checks are disabled, the control should behave exactly like a normal TComboBox
-- checks need to use windows themes and look alike all other checkboxes
-- it should be as simple as possible but not any simpler - no copy + paste from Controls.pas or StdCtrls.pas
+ - separate Items and Values where Values can optionally be presented to a user instead of Items
+ - custom aggregation of values depending on user selection - checking checkboxes should trigger the event which will return a text calculated based on selections and custom algorithm, which can be say: sum all values of selected items, take maximum, average etc.
+ - optionally for ease of use, it should contain bitmask aggregation mode - where value can be set and retrieved by simply assigning to a string representation of integer and appropriate checked items will be translated to bit weights of items
+ - checks should be completely optional, when checks are disabled, the control should behave exactly like a normal TComboBox
+ - checks need to use windows themes and look alike all other checkboxes
+ - it should be as simple as possible but not any simpler - no copy + paste from Controls.pas or StdCtrls.pas
 
 The control may have some bugs as it was not heavily tested and for best experience depends on some settings in DFM:
 
@@ -16,6 +16,13 @@ The control may have some bugs as it was not heavily tested and for best experie
     Style = csDropDownList
 
 Having said that, for all those who seek a free TCheckComboBox which have all or some of aforementioned features, feel free to use it.
+
+Update 2014/02/07
+
+ - implemented and fixed previously completely not tested ValuesAreFlags behavior - now properly returns textual representation of sum of flags in Value
+ - replaced GetCheck and SetCheck with Checked property (TODO: BeginUpdate / EndUpdate functions stopping SetChecked from updating control before EndUpdate)
+ - implemented Clear for all collections
+ - changed the type of FChecked collection from dynamic array to TList due to reference issues
 
 TGenericStringList<T>
 ==============
