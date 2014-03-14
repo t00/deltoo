@@ -24,6 +24,7 @@ DEALINGS IN THE SOFTWARE.
 
 History:
   v1.0 2012-12-12 First public release
+  v1.1 2014-03-14 Added AutoWidth feature along with a bugfix provided by Wolfgang Prinzjakowitsch
 
 }
 
@@ -46,6 +47,7 @@ type
 
   TCheckComboBox = class(TComboBox)
   private
+    FAutoWidth: Boolean;
     FCaption: string;
     FCheckCombo: Boolean;
     FChecked: TList;
@@ -80,6 +82,7 @@ type
     procedure CreateParams(var Params: TCreateParams); override;
     procedure CreateWnd; override;
     procedure DrawItem(Index: Integer; Rect: TRect; State: TOwnerDrawState); override;
+    procedure DropDown; override;
     procedure SelectionChanged;
     procedure WndProc(var Message: TMessage); override;
   public
@@ -89,6 +92,7 @@ type
     procedure SetAll(const AChecked: Boolean);
     property Checked[AIndex: Integer]: Boolean read GetChecked write SetChecked;
   published
+    property AutoWidth: Boolean read FAutoWidth write FAutoWidth default False;
     property Caption: string read FCaption write SetCaption;
     property CheckCombo: Boolean read FCheckCombo write SetCheckCombo default True;
     property DefaultValue: string read FDefaultValue write FDefaultValue;
@@ -127,6 +131,7 @@ begin
   FValuesAreFlags := False;
   FChecked := TList.Create;
   FCheckCombo := True;
+  FAutoWidth := False;
 end;
 
 destructor TCheckComboBox.Destroy;
@@ -510,8 +515,8 @@ begin
             v := FDefaultValue;
           FValue := FValue + v;
         end;
+        Inc(FSelectedCount);
       end;
-      Inc(FSelectedCount);
     end;
     
     if FValuesAreFlags then
@@ -531,6 +536,48 @@ begin
   begin
     SendMessage(Handle, WM_SETREDRAW, 1, 0);
     Invalidate;
+  end;
+end;
+
+procedure TCheckComboBox.DropDown;
+var
+  i: LongInt;
+  lf: LOGFONT;
+  f: HFONT;
+  itemWidth: Integer;
+begin
+  inherited DropDown;
+  
+  if FAutoWidth then
+  begin
+    itemWidth := Width - GetSystemMetrics(SM_CYVTHUMB) - GetSystemMetrics(SM_CXVSCROLL);
+
+    FillChar(lf, SizeOf(lf), 0);
+    StrPCopy(lf.lfFaceName, Font.Name);
+    lf.lfHeight := Font.Height;
+    lf.lfWeight := FW_NORMAL;
+    if fsBold in Font.Style then
+      lf.lfWeight := lf.lfWeight or FW_BOLD;
+
+    f := CreateFontIndirect(lf);
+    if (f <> 0) then
+    begin
+      try
+        Canvas.Handle := GetDC(Handle);
+        SelectObject(Canvas.Handle,f);
+        try
+          for i := 0 to Items.Count -1 do
+            itemWidth := Max(itemWidth, Canvas.TextWidth(Items[i]));
+          Inc(itemWidth , GetSystemMetrics(SM_CYVTHUMB) + GetSystemMetrics(SM_CXVSCROLL));
+        finally
+          ReleaseDC(Handle, Canvas.Handle);
+        end;
+      finally
+        DeleteObject(f);
+      end;
+    end;
+
+    Perform(CB_SETDROPPEDWIDTH, itemWidth, 0);
   end;
 end;
 
